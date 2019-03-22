@@ -1,0 +1,28 @@
+{
+  "name": "gamehub",
+  "version": "1.0.0",
+  "description": "Hub for describing games and game related tools.",
+  "main": "index.js",
+  "scripts": {
+      "build": "echo FIXME build script",
+      "test": "echo \"Error: no test specified\" && exit 1",
+      "predeploy": "npm run build",
+      "deploy": "gh-pages -d build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aocks/GameHub.git"
+  },
+  "keywords": [
+    "games"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/aocks/GameHub/issues"
+  },
+  "homepage": "https://github.com/aocks/GameHub#readme",
+  "devDependencies": {
+    "gh-pages": "^2.0.1"
+  }
+}
