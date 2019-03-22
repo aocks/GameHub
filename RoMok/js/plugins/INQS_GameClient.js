@@ -5162,7 +5162,7 @@ INQS.GameClient.version = 1.0
  * @param Server Address
  * @parent ---General---
  * @desc Internet address of game server
- * @default ws://localhost:3000
+ * @default ws://ether.twilightparadox.com:6392
  *
  * @help
  * ============================================================================
