@@ -1,0 +1,50 @@
+
+
+* WIP and thinking
+
+From my understanding, it seems like the server is authoriatativ
+and safe from tampering since it only changes state based on
+messages from clients which match the allowedOps. Also, clients
+mutating state does not affect server.
+See thread below to verify this:
+
+  - https://discuss.colyseus.io/topic/223/does-client-mutating-room-state-cause-trouble
+
+One thing to possibly worry about is that invalid moves from
+the client can crash the server. We should fix that.
+
+Also, it would be nice if the clients maintain a shadow board
+or something. This could be used to "test" a move before sending
+to the server but maybe that isn't so useful. More useful is
+being able to call showBoard at the client side or stuff like that.
+Since colyseus syncs state of data but not methods, we can't
+call showBoard or other methods on the client directly.
+we can create a `new` object on the client and copy server
+state into it but that is slightly ugly. Cleaner might be to
+have client listen to server and apply move history into its
+own board. That can be future plan if necessary but for now
+we can just do the copy hack.
+
+We could also implement a pure web client for testing.
+
+
+* Useful javascript stuff
+
+** testing
+
+  - Using =jest= framework
+    - I don't know much about it so just hacks
+  - Do =npm run test= to run tests
+    - I think it builds source on the fly; does not use ./dist
+    - See file:src/net/all.test.js for the unit tests
+
+** random thoughts
+
+  - Do `npm run dev` to build javascript files that go into `dist/`
+  - Do `node dist/server.js` to start the server
+  - Do `node dist/clientTest.js` to start a test client
+  - Fiddel with `entry` in `webpack-server.config.js`
+    - can choose where output js files go
+  - https://jlongster.com/Backend-Apps-with-Webpack--Part-I#Getting-Started
+    - helpful for getting webpack working with node 
+

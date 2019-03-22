@@ -1,0 +1,34 @@
+
+* README                                                           :noexport:
+
+This is the master for our help file written in emacs org-mode. You
+can edit an org-mode file using the emacs text editor or on
+github. The following are a few things to keep in mind:
+
+  - This file auto-generates the index.html file used for actual help.
+  - An asterisk stars a new section.
+  - Sections with the tag =:noexport:= are not exported to HTML.
+
+* Introduction
+
+#+html: <!-- The HTML file is auto-generated from index.org    -->
+#+html: <!-- Do not modify index.html directly. Instead,       -->
+#+html: <!-- edit the index.org file and regenerate index.html -->
+
+
+Welcome to the help section and documentation for =GPM_RPG=!
+
+* Controls
+** Tools
+
+Certain items you collect in your adventure can be used as
+tools. These will be shown in the lower right Tool HUD and can be
+controlled as follows:
+
+  - =Q/W=: Choose net/previous tool.
+  - =Alt=: Use tool.
+
+* COMMENT :noexport:
+;; Local Variables:  
+;; org-html-postamble: nil
+;; End:

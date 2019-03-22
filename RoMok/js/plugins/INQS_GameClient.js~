@@ -1,0 +1,278 @@
+/******/ (function(modules) { // webpackBootstrap
+/******/ 	// The module cache
+/******/ 	var installedModules = {};
+/******/
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/
+/******/ 		// Check if module is in cache
+/******/ 		if(installedModules[moduleId]) {
+/******/ 			return installedModules[moduleId].exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = installedModules[moduleId] = {
+/******/ 			i: moduleId,
+/******/ 			l: false,
+/******/ 			exports: {}
+/******/ 		};
+/******/
+/******/ 		// Execute the module function
+/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/
+/******/ 		// Flag the module as loaded
+/******/ 		module.l = true;
+/******/
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/
+/******/
+/******/ 	// expose the modules object (__webpack_modules__)
+/******/ 	__webpack_require__.m = modules;
+/******/
+/******/ 	// expose the module cache
+/******/ 	__webpack_require__.c = installedModules;
+/******/
+/******/ 	// define getter function for harmony exports
+/******/ 	__webpack_require__.d = function(exports, name, getter) {
+/******/ 		if(!__webpack_require__.o(exports, name)) {
+/******/ 			Object.defineProperty(exports, name, { enumerable: true, get: getter });
+/******/ 		}
+/******/ 	};
+/******/
+/******/ 	// define __esModule on exports
+/******/ 	__webpack_require__.r = function(exports) {
+/******/ 		if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
+/******/ 			Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
+/******/ 		}
+/******/ 		Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 	};
+/******/
+/******/ 	// create a fake namespace object
+/******/ 	// mode & 1: value is a module id, require it
+/******/ 	// mode & 2: merge all properties of value into the ns
+/******/ 	// mode & 4: return value when already ns object
+/******/ 	// mode & 8|1: behave like require
+/******/ 	__webpack_require__.t = function(value, mode) {
+/******/ 		if(mode & 1) value = __webpack_require__(value);
+/******/ 		if(mode & 8) return value;
+/******/ 		if((mode & 4) && typeof value === 'object' && value && value.__esModule) return value;
+/******/ 		var ns = Object.create(null);
+/******/ 		__webpack_require__.r(ns);
+/******/ 		Object.defineProperty(ns, 'default', { enumerable: true, value: value });
+/******/ 		if(mode & 2 && typeof value != 'string') for(var key in value) __webpack_require__.d(ns, key, function(key) { return value[key]; }.bind(null, key));
+/******/ 		return ns;
+/******/ 	};
+/******/
+/******/ 	// getDefaultExport function for compatibility with non-harmony modules
+/******/ 	__webpack_require__.n = function(module) {
+/******/ 		var getter = module && module.__esModule ?
+/******/ 			function getDefault() { return module['default']; } :
+/******/ 			function getModuleExports() { return module; };
+/******/ 		__webpack_require__.d(getter, 'a', getter);
+/******/ 		return getter;
+/******/ 	};
+/******/
+/******/ 	// Object.prototype.hasOwnProperty.call
+/******/ 	__webpack_require__.o = function(object, property) { return Object.prototype.hasOwnProperty.call(object, property); };
+/******/
+/******/ 	// __webpack_public_path__
+/******/ 	__webpack_require__.p = "";
+/******/
+/******/
+/******/ 	// Load entry module and return exports
+/******/ 	return __webpack_require__(__webpack_require__.s = "./net/INQS_GameClient.js");
+/******/ })
+/************************************************************************/
+/******/ ({
+
+/***/ "./net/INQS_GameClient.js":
+/*!********************************!*\
+  !*** ./net/INQS_GameClient.js ***!
+  \********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+
+//= ============================================================================
+// INQS GameClient Plugin
+// INQS_GameClient.js
+//= ============================================================================
+
+// Tell eslint about a few things to suppress unnecessary warnings
+/* global Imported:true PluginManager Game_Temp $gameVariables
+          $gameTemp $gameMap PIXI $gamePlayer $gameSelfSwitches SceneManager
+*/
+
+if (Imported == null) {
+  Imported = {}
+}
+
+Imported.INQS_GameClient = true
+
+if (INQS == null) {
+  var INQS = {}
+}
+INQS.GameClient = INQS.GameClient || {}
+INQS.GameClient.version = 1.0
+
+//= ============================================================================
+/*:
+ * @plugindesc v1.00 Implements connection to game server
+ *
+ * @author INQS
+ *
+ * @param ---General---
+ * @default
+ *
+ * @param Server Address
+ * @parent ---General---
+ * @desc Internet address of game server
+ * @default ws://localhost:3000
+ *
+ * @help
+ * ============================================================================
+ * Introduction
+ * ============================================================================
+ *
+ * This plugin allows you to use weapons while you are on the main map
+ * instead of in the RMMV combat system.
+ *
+ * GENERAL NOTES:
+ *
+ *   This plugin works by disabling click to move (requiring you to use
+ *   WASD or arrow keys). Instead, clicking is used for targetting weapons.
+ *   You can control this somewhat through variables as discussed below.
+ *
+ * SUGGESTED PLUGINS:
+ *
+ *   You will probably want to have Yanfly Button Common Events and the
+ *   Yanfly Keyboard Config plugins installed.
+ *
+ * PARAMETERS:
+ *
+ *   Set the "Click Event" parameter to the number of the common
+ *   event to trigger when the user clicks something. For example, if
+ *   you set this to 22, then common event 22 will be triggered any time
+ *   the user clicks on something. You could use this to somehow decorate
+ *   the map location or the event the user clicked (see below for more
+ *   on this).
+ *
+ *   Set the "Store Event Var" paramter to the number of the variable
+ *   where you want the clicked event to be stored. We use the
+ *   $gameMap.eventIdXy script call to get the event at the click location
+ *   and store it. For example, if you set this to 12, then when the
+ *   user clicks an event with ID 73, we will set variable 12 to 73.
+ *   You can use this in conjuction with the "Click Event" parameter to
+ *   find what was clicked.
+ *
+ *   In addition, you can set "Click Loc Var X" to a number for a variable
+ *   which you want to receive the x coordinate of the click event. You can
+ *   do the same for the Y value. This is useful in case you want the
+ *   map location clicked instead of the event.
+ *
+ *   Finally, set the "Click Move Variable" parameter to the number of
+ *   the control variable you want to control movement. For example,
+ *   if you set this to 7, then if variable 7 evaluates to true then
+ *   click to move is allowed. If this variable is undefined or 0 or
+ *   false, then click to move is suppressed. We suggest you leave
+ *   this undefined when you first start using this plugin and only
+ *   set the "Click Move Variable" if you really want to have click
+ *   move at certain times.
+ *
+ * USAGE:
+ *
+ *   The simplest usage as follows. First install the plugin and set
+ *   Store Event Var. Then make a fire weapon event (e.g., by binding
+ *   the F or Y key or something using the YEP_ButtonCommonEvents.js
+ *   plugin. Have that fire weapon event do things like make a sound,
+ *   and do a script call to INQS.MapWeapons.redline() to make it so we
+ *   draw a red line from the player to the target indicating firing.
+ *
+ *   You can pass other arguments to INQS.MapWeapons.redline to have it
+ *   help with the damage process. See docs for INQS.MapWeapons.redline
+ *   for details.
+ *
+ * WARNINGS:
+ *
+ *   If you use other plugins that mess with the click such as
+ *   TDDP_MouseSystemEx, you may have conflicts.
+ */
+//= ============================================================================
+
+//= ============================================================================
+// Parameter Variables
+//= ============================================================================
+
+INQS.Parameters = PluginManager.parameters('INQS_GameClient')
+INQS.Param = INQS.Param || {}
+
+INQS.Param.ServerAddress = INQS.Parameters['Server Address']
+
+INQS.GameClient.SetupParameters = function () {
+}
+INQS.GameClient.SetupParameters()
+
+
+INQS.GameClient.colyseus = __webpack_require__(/*! colyseus.js */ "colyseus.js");
+
+
+INQS.GameClient.client = new INQS.GameClient.colyseus.Client(
+  INQS.Param.ServerAddress);
+
+INQS.GameClient.client.onError.add(function(err) {
+  console.log("something wrong happened", err);
+});
+
+INQS.GameClient.client.onOpen.add(function() {
+  console.log("connection is now open");
+});
+
+
+INQS.GameClient.room = INQS.GameClient.client.join("chat");
+
+INQS.GameClient.room.listen("players/:id/:attribute", (change) => {
+  console.log(change.operation); // => "add" | "remove" | "replace"
+  console.log(change.path.attribute, "has been changed");
+  console.log(change.path.id);
+  console.log(change.value);
+});
+
+
+INQS.GameClient.room.listen("messages/:id/:attribute", (change) => {
+  console.log(change.operation); // => "add" | "remove" | "replace"
+  console.log(change.path.attribute, "has been changed");
+  console.log(change.path.id);
+  console.log(change.value);},
+	    true);
+
+
+
+INQS.GameClient.client.getAvailableRooms("chat", function(rooms, err) {
+  if (err) console.error(err);
+  console.log('--> Available Rooms:');
+  rooms.forEach(function(room) {
+    console.log(room.roomId);
+    console.log(room.clients);
+    console.log(room.maxClients);
+    console.log(room.metadata);
+  });
+});
+
+
+
+/***/ }),
+
+/***/ "colyseus.js":
+/*!******************************!*\
+  !*** external "colyseus.js" ***!
+  \******************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+module.exports = require("colyseus.js");
+
+/***/ })
+
+/******/ });
+//# sourceMappingURL=INQS_GameClient.js.map

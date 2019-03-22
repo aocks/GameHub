@@ -1,0 +1,28 @@
+
+* README                                                           :noexport:
+
+This is the master for our help file written in emacs org-mode. You
+can edit an org-mode file using the emacs text editor or on
+github. The following are a few things to keep in mind:
+
+  - This file auto-generates the index.html file used for actual help.
+  - An asterisk stars a new section.
+  - Sections with the tag =:noexport:= are not exported to HTML.
+
+* Introduction
+
+#+html: <!-- The HTML file is auto-generated from index.org    -->
+#+html: <!-- Do not modify index.html directly. Instead,       -->
+#+html: <!-- edit the index.org file and regenerate index.html -->
+
+Welcome to the help section and documentation for =RoMok=!
+
+** Game Rules
+
+You take turns moving your troops onto the board. The first player to
+place 5 units in a row, column, or diagonal wins.
+
+* COMMENT :noexport:
+;; Local Variables:  
+;; org-html-postamble: nil
+;; End:
