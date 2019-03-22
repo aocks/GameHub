@@ -1,7 +1,7 @@
 [
 null,
 {"id":1,"list":[{"code":0,"indent":0,"parameters":[]}],"name":"","switchId":1,"trigger":0},
-{"id":2,"list":[{"code":0,"indent":0,"parameters":[]}],"name":"","switchId":1,"trigger":0},
+{"id":2,"list":[{"code":101,"indent":0,"parameters":["People1",6,0,2]},{"code":401,"indent":0,"parameters":["Would you like instructions?"]},{"code":102,"indent":0,"parameters":[["Yes","No"],1,0,2,0]},{"code":402,"indent":0,"parameters":[0,"Yes"]},{"code":101,"indent":1,"parameters":["People1",6,0,2]},{"code":401,"indent":1,"parameters":["OK, I will show you the manual. You"]},{"code":401,"indent":1,"parameters":["can find this yourself from the"]},{"code":401,"indent":1,"parameters":["main menu as well."]},{"code":356,"indent":1,"parameters":["OpenHelp"]},{"code":0,"indent":1,"parameters":[]},{"code":402,"indent":0,"parameters":[1,"No"]},{"code":101,"indent":1,"parameters":["People1",6,0,2]},{"code":401,"indent":1,"parameters":["OK. I will be walking around near the"]},{"code":401,"indent":1,"parameters":["top of the game area. Tap me on the"]},{"code":401,"indent":1,"parameters":["shoulder if you need something."]},{"code":0,"indent":1,"parameters":[]},{"code":404,"indent":0,"parameters":[]},{"code":0,"indent":0,"parameters":[]}],"name":"OfferInstructions","switchId":1,"trigger":0},
 {"id":3,"list":[{"code":0,"indent":0,"parameters":[]}],"name":"","switchId":1,"trigger":0},
 {"id":4,"list":[{"code":0,"indent":0,"parameters":[]}],"name":"","switchId":1,"trigger":0},
 {"id":5,"list":[{"code":0,"indent":0,"parameters":[]}],"name":"","switchId":1,"trigger":0},

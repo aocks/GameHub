@@ -5159,9 +5159,9 @@ INQS.GameClient.version = 1.0
  * @param ---General---
  * @default
  *
- * @param Server Address
+ * @param RoMok Server Address
  * @parent ---General---
- * @desc Internet address of game server
+ * @desc Internet address of RoMok game server
  * @default ws://ether.twilightparadox.com:6392
  *
  * @help
@@ -5241,7 +5241,7 @@ INQS.GameClient.version = 1.0
 INQS.Parameters = PluginManager.parameters('INQS_GameClient')
 INQS.Param = INQS.Param || {}
 
-INQS.Param.ServerAddress = INQS.Parameters['Server Address']
+INQS.Param.RoMokServerAddress = INQS.Parameters['RoMok Server Address']
 
 INQS.GameClient.SetupParameters = function () {
 }
@@ -5286,6 +5286,14 @@ class RoMokClientRMMV extends INQS.RoMokNet.RoMokClient {
   }
 
 
+  connect () {
+    if (this.addr == null) {
+      console.log('Choosing RoMok game server address:' +
+		  INQS.Param.RoMokServerAddress)
+      this.addr = INQS.Param.RoMokServerAddress
+    }
+    super.connect()
+  }
   joinGame () {
     super.joinGame()
     $gameVariables.setValue(15, 'Waiting for other players...')
@@ -5301,6 +5309,12 @@ class RoMokClientRMMV extends INQS.RoMokNet.RoMokClient {
   }
 
   moveRMMV (myEvent, destX, destY) {
+    if (myEvent.setMoveSpeed == null) {
+      var msg = 'WARNING: myEvent seems broken'
+      console.log(msg)
+      console.log(myEvent)
+      throw new Error(myEvent)
+    }
     myEvent.setMoveSpeed(5)
     var scr = ('if (!this.pos(' + destX + ',' + destY + '))' +
                'this.moveToPoint(' + destX + ',' + destY + '); ' +
@@ -5338,10 +5352,27 @@ class RoMokClientRMMV extends INQS.RoMokNet.RoMokClient {
   }
   */
 
+  playerInfoChanged (change) {
+    super.playerInfoChanged(change)
+    let msg = ''
+    for (let i = 0; i < this.room.state.game.players.length; i++) {
+      msg += 'player ' + i
+      if (this.myPlayerNum === i) {
+        msg += ' (you)'
+      }
+      msg += ': ' + this.room.state.game.players[i] + '  '
+    }
+    $gameVariables.setValue(16, msg)
+  }
+
   gameTurnChanged (value) {
     super.gameTurnChanged(value)
-    $gameVariables.setValue(15, 'Turn for player ' + (
-      this.room.state.game.turn))
+    if (this.room.state.game.players.length < 2) {
+      $gameVariables.setValue(15, 'Waiting for players')
+    } else {
+      $gameVariables.setValue(15, 'Turn for player ' + (
+	this.room.state.game.turn))
+    }
     let winner = this.room.state.game.game_status_detail.winner
     if (winner != null) {
       $gameVariables.setValue(
@@ -5371,7 +5402,7 @@ class RoMokClientRMMV extends INQS.RoMokNet.RoMokClient {
       console.log('FIXME: unable to do gameHistoryUpdate because of error')
       console.log(error)
       console.log('Action was:')
-      console.log(action)
+      console.log(value)
       throw error
     }
   }

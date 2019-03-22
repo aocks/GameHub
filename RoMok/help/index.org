@@ -17,12 +17,27 @@ github. The following are a few things to keep in mind:
 
 Welcome to the help section and documentation for =RoMok=!
 
+** Finding players
+
+Once you enter the game, you need to flip the switch near the top of
+the screen to connect to the server and start searching for
+players. As soon as an opponent is found for you, the game will start
+and the HUD at the bottom will indicate which player's turn is active.
+
 ** Game Rules
 
 You take turns moving your troops onto the board. The first player to
 place 5 units in a row, column, or diagonal wins.
 
+If you are player 0, your troops are on the left side of the board. If
+you are player 1, your troops are on the right side. When it is your
+turn, click on one of your troops and then click on the part of the
+board you would like to move to.
+
+Once a player has 5 in a row, the game will be over. You must reload
+the game window to play again.
+
 * COMMENT :noexport:
-;; Local Variables:  
-;; org-html-postamble: nil
-;; End:
+/* Local Variables:  */
+/* org-html-postamble: nil */
+/* End:              */
