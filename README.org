@@ -1,0 +1,23 @@
+
+* Introduction
+
+The GameHub serves as a way for AOCKS to distribute games and game
+related tools and commentary via GitHub pages.
+
+This branch is mainly intended for developers and not so useful to the
+general public. We leave it public in case it helps others in setting
+up distribution of tools and software via github pages.
+
+The main site is in the gh-pages branch. When updates to that branch
+get pushed, they are automatically reflected on
+https://aocks.github.io/GameHub/.
+
+* Usage
+
+FIXME: need more discussion:
+
+  1. FIXME: can commit directly to gh-pages branch.
+  2. FIXME: can put stuff in dist directory
+     - using =npm run deploy= or directly via =node gh-pages -d dist=
+       will push stuff in =dist= directory into gh-pages branch and
+       push to github.
