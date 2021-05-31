@@ -5162,7 +5162,7 @@ INQS.GameClient.version = 1.0
  * @param RoMok Server Address
  * @parent ---General---
  * @desc Internet address of RoMok game server
- * @default wss://romok.xenomancy.com:6392
+ * @default wss://romok.xenomancy.com:4445
  *
  * @help
  * ============================================================================
