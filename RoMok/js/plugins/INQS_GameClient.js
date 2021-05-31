@@ -5162,7 +5162,7 @@ INQS.GameClient.version = 1.0
  * @param RoMok Server Address
  * @parent ---General---
  * @desc Internet address of RoMok game server
- * @default ws://ether.twilightparadox.com:6392
+ * @default ws://ether.twilightparadox.com/romok/join:6392
  *
  * @help
  * ============================================================================
