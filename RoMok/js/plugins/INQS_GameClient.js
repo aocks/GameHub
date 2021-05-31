@@ -5144,7 +5144,7 @@ module.exports = encode;
 
 
 // Tell eslint about a few things to suppress unnecessary warnings
-/* global PluginManager $gameMap $dataEnemies INQS
+/* global PluginManager $gameMap $dataEnemies $gameVariables INQS DataManager
 */
 
 INQS.GameClient = INQS.GameClient || {}
@@ -5161,8 +5161,23 @@ INQS.GameClient.version = 1.0
  *
  * @param RoMok Server Address
  * @parent ---General---
- * @desc Internet address of RoMok game server
+ * @desc Default internet address of RoMok game server
  * @default wss://romok.xenomancy.com:4445
+ *
+ * @param RoMok Server Addr Var
+ * @parent ---General---
+ * @desc Number of variable to look in for user configured server address.
+ * @default 18
+ *
+ * @param RoMok Username Var
+ * @parent ---General---
+ * @desc Number of variable to store username for this player.
+ * @default 20
+ *
+ * @param RoMok Opponent Var
+ * @parent ---General---
+ * @desc Number of variable to store name of preferred opponent.
+ * @default 19
  *
  * @help
  * ============================================================================
@@ -5242,6 +5257,9 @@ INQS.Parameters = PluginManager.parameters('INQS_GameClient')
 INQS.Param = INQS.Param || {}
 
 INQS.Param.RoMokServerAddress = INQS.Parameters['RoMok Server Address']
+INQS.Param.RoMokServerAddrVar = INQS.Parameters['RoMok Server Addr Var']
+INQS.Param.RoMokUsernameVar = INQS.Parameters['RoMok Username Var']
+INQS.Param.RoMokOpponentVar = INQS.Parameters['RoMok Opponent Var']
 
 INQS.GameClient.SetupParameters = function () {
 }
@@ -5262,7 +5280,7 @@ INQS.RoMokLib = __webpack_require__(/*! ./RoMokLib.js */ "./src/net/RoMokLib.js"
 //FIXME: therefore you need to be super paranoid about wrapping the
 //FIXME: RMMV script calls in try/catch and/or being super paranoid
 //FIXME: to use try/catch in your own stuff otherwise you will get
-//FIXME: super confused due to silently failing errors 
+//FIXME: super confused due to silently failing errors
 
 //FIXME:wierd stuff happens when we try to extend colyseus inside RMMV
 //FIXME:plugin. Make it so networking out of RMMV plugin
@@ -5275,7 +5293,102 @@ function finishMoveRMMV (myRawEvent) {
   myRawEvent.setDirection(myPawn.meta.direction)
   // Fially set to self switch B so no more move
   var key = [myRawEvent._mapId, myRawEvent._eventId, 'B']
-  $gameSelfSwitches.setValue(key, 1)    
+  $gameSelfSwitches.setValue(key, 1)
+}
+
+function moveRMMV (myEvent, destX, destY) {
+  if (myEvent.setMoveSpeed == null) {
+    var msg = 'WARNING: myEvent seems broken'
+    console.log(msg)
+    console.log(myEvent)
+    throw new Error(myEvent)
+  }
+  myEvent.setMoveSpeed(5)
+  var scr = ('if (!this.pos(' + destX + ',' + destY + '))' +
+             'this.moveToPoint(' + destX + ',' + destY + '); ' +
+             'else {INQS.GameClient.exports.finishMoveRMMV(this);\n' +
+             'this._moveRoute.repeat = false}')
+  var mroute = {
+    code: Game_Character.ROUTE_SCRIPT,
+    parameters: [scr]
+  }
+  var mrouteEnd = { code: Game_Character.ROUTE_END }
+  var lst = [mroute, mrouteEnd]
+  var route = { list: lst, repeat: true, skippable: false, wait: false }
+  myEvent.forceMoveRoute(route)
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function requestSpawn (mapId, eventId, x, y, preserve) {
+  let maxTries = 20;
+  for (let i=0; i<maxTries; i++) {
+    if (Yanfly.SpawnEventFailChecks(mapId, eventId, x, y)) {
+      await sleep(100)
+    } else {
+      try {
+        Yanfly.SpawnEventAt(mapId, eventId, x, y, preserve)
+        let newRawEvent = $gameMap.LastSpawnedEvent()
+        let newEvent = newRawEvent.event()
+        if (newEvent.meta == null) { // Yanfly spawner may not
+          DataManager.extractMetadata(newEvent) // fill meta; so do it
+        }
+        newRawEvent._animationId = 4
+      } catch (error) {
+        console.log('Error in requestSpawn:')
+        console.log(error)
+        throw error // hard to catch this since async
+      }
+      break
+    }
+  }
+}
+
+class RMMV_RoMokGame extends INQS.RoMokLib.RoMokGame {
+
+  /**
+   *
+   *   @param action:   SimpleAction instance for the move.
+   *
+   * ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+   *
+   *   @return Result of calling parent doMOVE.
+   *
+   * ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+   *
+   *   @desc This calls the parent doMOVE and then makes RMMV
+   *         move events around to reflect the move.
+   *
+   */
+  doMOVE (action) {
+    let result = super.doMOVE(action)
+    let src = INQS.RoMokLib.StrToBoardXY(action.src)
+    let srcEventId = $gameMap.eventIdXy(src.x, src.y)
+    if (srcEventId == null && srcEventId === 0) {
+      let errMsg = ('Could not determine source event for x|y=' +
+                    src.x + ' | ' + src.y)
+      console.log(errMsg)
+      throw new Error(errMsg)
+    }
+    let srcEvent = $gameMap.event(srcEventId)
+    let dest = INQS.RoMokLib.StrToBoardXY(action.dest)
+    moveRMMV(srcEvent, dest.x, dest.y)
+    return result
+  }
+
+  regenPieceAt (locStr, player) {
+    let result = super.regenPieceAt(locStr, player)
+    console.log('FIXME: make RMMV regen piece at loc:')//FIXME
+    console.log(locStr)
+    let loc = INQS.RoMokLib.StrToBoardXY(locStr)
+    // This is tricky because we cannot spawn an event on another
+    // but the event may not have moved yet since the RMMV game
+    // loop handles that
+    requestSpawn(2, player + 1, loc.x, loc.y, true)
+    return result
+  }
 }
 
 class RoMokClientRMMV extends INQS.RoMokNet.RoMokClient {
@@ -5283,19 +5396,24 @@ class RoMokClientRMMV extends INQS.RoMokNet.RoMokClient {
     super()
     console.log('Calling RoMokClientRMMV constructor at ' + (new Date()))
     this.addr = null
+    this.localGame = null
   }
-
 
   connect () {
     if (this.addr == null) {
-      console.log('Choosing RoMok game server address:' +
-		  INQS.Param.RoMokServerAddress)
-      this.addr = INQS.Param.RoMokServerAddress
+      let serverAddr = $gameVariables.value(
+        INQS.Param.RoMokServerAddrVar)
+      console.log('Choosing RoMok game server address:' + serverAddr)
+      this.addr = serverAddr
     }
     super.connect()
   }
+
   joinGame () {
-    super.joinGame()
+    let options = {}
+    options.username = $gameVariables.value(INQS.Param.RoMokUsernameVar)
+    options.opponent = $gameVariables.value(INQS.Param.RoMokOpponentVar)
+    super.joinGame('game', options)
     $gameVariables.setValue(15, 'Waiting for other players...')
   }
 
@@ -5308,105 +5426,73 @@ class RoMokClientRMMV extends INQS.RoMokNet.RoMokClient {
     let result = this.move(src, dest)
   }
 
-  moveRMMV (myEvent, destX, destY) {
-    if (myEvent.setMoveSpeed == null) {
-      var msg = 'WARNING: myEvent seems broken'
-      console.log(msg)
-      console.log(myEvent)
-      throw new Error(myEvent)
+  playerNum2Name (playerNum) {
+    let playerId = this.room.state.game.players[playerNum]
+    let username = this.room.state.sid2user[playerId]
+    let msg = ''
+    if (username) {
+      msg += username
+    } else {
+      msg += `player ${playerNum}(${playerId})`
     }
-    myEvent.setMoveSpeed(5)
-    var scr = ('if (!this.pos(' + destX + ',' + destY + '))' +
-               'this.moveToPoint(' + destX + ',' + destY + '); ' +
-               'else {INQS.GameClient.exports.finishMoveRMMV(this);\n' +
-	       'this._moveRoute.repeat = false}')
-    var mroute = {
-      code: Game_Character.ROUTE_SCRIPT,
-      parameters: [scr]
-    }
-    var mrouteEnd = { code: Game_Character.ROUTE_END }
-    var lst = [mroute, mrouteEnd]
-    var route = { list: lst, repeat: true, skippable: false, wait: false }
-    myEvent.forceMoveRoute(route)
+    return msg
   }
-
-  /*
-  askMove (srcEventId, destX, destY) {
-    let srcEvent = $gameMap.event(srcEventId)
-    let src = srcEvent.x + '|' + srcEvent.y
-    let dest = destX + '|' + destY
-    let myGame = this.FIXME.getLocalGame()
-    let result = null
-    let move = new INQS.RoMokLib.SimpleMove(
-      src, dest, this.FIXME.myPlayerNum)
-    try {
-      result = myGame.doAction(move)
-      result = this.FIXME.move(src, dest) // seems like legal move so send to server
-      console.log(`Result of sending move(${src}, ${dest}):`)
-      console.log(result)
-    } catch (error) {
-      console.log(`Got error in trying move(${src}, ${dest}): ${error}`)
-      result = error
-    }
-    return result
-  }
-  */
 
   playerInfoChanged (change) {
     super.playerInfoChanged(change)
+    this.updatePlayerTurnMsg()
     let msg = ''
     for (let i = 0; i < this.room.state.game.players.length; i++) {
-      msg += 'player ' + i
+      msg += this.playerNum2Name(i)
       if (this.myPlayerNum === i) {
         msg += ' (you)'
       }
-      msg += ': ' + this.room.state.game.players[i] + '  '
+      msg += '; '
     }
     $gameVariables.setValue(16, msg)
   }
 
   gameTurnChanged (value) {
     super.gameTurnChanged(value)
-    if (this.room.state.game.players.length < 2) {
-      $gameVariables.setValue(15, 'Waiting for players')
-    } else {
-      $gameVariables.setValue(15, 'Turn for player ' + (
-	this.room.state.game.turn))
-    }
+    this.updatePlayerTurnMsg()
     let winner = this.room.state.game.game_status_detail.winner
     if (winner != null) {
       $gameVariables.setValue(
-	15, 'GAME OVER!  Winner is player ' + winner)
+        15, 'GAME OVER!  Winner is ' + this.playerNum2Name(winner))
     }
   }
 
-  gameHistoryUpdate (value) {
-    super.gameHistoryUpdate(value)
-    console.log('FIXME: RoMokClientRMMV.gameHistoryUpdate')
-    if (value.actionType !== 'MOVE') {
-      throw new Error('FIXME: unexpected actionType:' + value.actionType)
+  updatePlayerTurnMsg () {
+    if (this.room.state.game.players.length < 2) {
+      $gameVariables.setValue(15, 'Waiting for players')
+    } else {
+      $gameVariables.setValue(15, 'Turn for ' + (
+        this.playerNum2Name(this.room.state.game.turn)))
     }
+  }
+
+  prepareToStartGame () {
+    super.prepareToStartGame()
+    this.localGame = this.getLocalGame()
+  }
+
+  getLocalGameMaker () {
+    return RMMV_RoMokGame
+  }
+
+  gameHistoryUpdate (change) {
     try {
-      let src = INQS.RoMokLib.StrToBoardXY(value.src)
-      let srcEventId = $gameMap.eventIdXy(src.x, src.y)
-      if (srcEventId == null && srcEventId === 0) {
-	let errMsg = ('Could not determine source event for x|y=' +
-		      src.x + ' | ' + src.y)
-	console.log(errMsg)
-	throw new Error(errMsg)
+      super.gameHistoryUpdate(change)
+      if (change.actionType !== 'MOVE') {
+        throw new Error('FIXME: unexpected actionType:' + change.actionType)
       }
-      let srcEvent = $gameMap.event(srcEventId)
-      let dest = INQS.RoMokLib.StrToBoardXY(value.dest)
-      this.moveRMMV(srcEvent, dest.x, dest.y)
+      this.localGame.doAction(change)
     } catch (error) {
-      console.log('FIXME: unable to do gameHistoryUpdate because of error')
+      console.log('Error in gameHistoryUpdate:')
       console.log(error)
-      console.log('Action was:')
-      console.log(value)
       throw error
     }
   }
-
 }
 
 INQS.GameClient.exports = {
@@ -5437,6 +5523,7 @@ INQS.GameClient.client = new RoMokClientRMMV()
 
 
 
+// Enumerate list of allowed turn types
 const TURN_ENUM = {
   MOVE: 'MOVE'
 }
@@ -5446,13 +5533,52 @@ const GAME_STATUS = {
   GAME_OVER: 'GAME_OVER'
 }
 
+// Enum for status types. So StatusMsg class for more details.
+const STATUS_TYPE = {
+    OK: 'OK', // indicates requested action was successful
+    NOOP: 'NOOP', // indicates requested action but no bust
+    ERROR: 'ERROR', // indicates something bad happened
+}
+
+// The StatusMsg class is a simple class for the result that a requested
+// action could have. It has the following components:
+//
+//    status: Something in STATUS_TYPE enum. If OK then requested action
+//            was done. If NOOP then something did not quite work but
+//            nothing really bad happened and there was no bust so you
+//            can probably just ignore it or try again. If ERROR, then
+//            something bad happened that should be reported to the user
+//            or otherwise dealt with.
+//
+//    msg:    Brief description of the action result.
+//
+// The intended use is that you can have an action log in the game and
+// basically just put the StatusMsg instances in there so the player
+// knows what is going on.
+//
+class StatusMsg {
+    constructor (msg, status) {
+	if (status in STATUS_TYPE) {
+	    this.status = status
+	} else {
+	    throw new Error(`Status ${status} not a valid status code`)
+	}
+	this.msg = msg
+    }
+
+    toString () {
+	let result = 'status: ' + this.status + ', msg: ' + this.msg
+	return result
+    }
+}
+
 let BoardXYToStr = function (x, y) {
   return String(x) + '|' + String(y)
 }
 
 function StrToBoardXY (bstr) {
   let bsplit = bstr.split('|')
-  return {x: Number(bsplit[0]), y: Number(bsplit[1])}
+  return { x: Number(bsplit[0]), y: Number(bsplit[1]) }
 }
 
 class BoardCoord {
@@ -5490,10 +5616,28 @@ class SimpleMove extends SimpleAction {
 }
 
 class GenericPiece {
-  constructor (name, owner, comment = null) {
+  constructor (name, owner, comment = null, abilities = null) {
     this.name = name
     this.owner = owner // 1 for player 1, 2 for player 2, etc.
     this.comment = comment
+    if (abilities) {
+      this.abilities = abilities
+    } else {
+      this.abilities = {}
+    }
+  }
+}
+
+class PawnPiece extends GenericPiece {
+  constructor (owner, comment = null) {
+    super('p', owner, comment)  // 'p'awn
+  }
+}
+
+class BumperPiece extends GenericPiece {
+  constructor (owner, comment = null) {
+    super('b', owner, comment)  // 'b'umper
+    this.abilities['BUMP'] = true
   }
 }
 
@@ -5514,9 +5658,17 @@ class GenericTurnBasedGame {
   }
 
   showBoard () {
-    let result = ''
+    let result = ' '
     let maxEdge = this.fullSize() - this.pad
+    for (let x = 0; x <= maxEdge; x++) {
+      result += x % 10
+    }
+    result += '\n'
     for (let y = this.pad; y < maxEdge; y++) {
+      result += (y % 10) + '>'
+      for (let x = 1; x < this.pad; x++) {
+        result += ' '
+      }
       for (let x = this.pad; x < maxEdge; x++) {
         let piece = this.pieceAt(x, y)
         if (piece == null) {
@@ -5525,7 +5677,7 @@ class GenericTurnBasedGame {
           result += piece.owner
         }
       }
-      result += '\n'
+      result += '<\n'
     }
     return result
   }
@@ -5561,16 +5713,22 @@ class GenericTurnBasedGame {
 }
 
 class RoMokGame extends GenericTurnBasedGame {
-  constructor (players, size, pad) {
+  constructor (players, size, pad, bumpers=3) {
     super(players)
     this.size = size
     this.pad = pad
+    this.bumpers = bumpers
     let fullSize = this.fullSize()
     for (let y = 0; y < fullSize; y++) {
-      let coord = BoardXYToStr(0, y)
-      this.board[coord] = new GenericPiece('p', 0) // player 0 'p'awn
-      coord = BoardXYToStr(fullSize - 1, y)
-      this.board[coord] = new GenericPiece('p', 1) // player 1 'p'awn
+      let p0coord = BoardXYToStr(0, y)
+      let p1coord = BoardXYToStr(fullSize - 1, y)      
+      if (y < this.bumpers) {
+        this.board[p0coord] = new BumperPiece(0) // player 0 bumper
+        this.board[p1coord] = new BumperPiece(1) // player 1 pawn
+      } else {
+        this.board[p0coord] = new PawnPiece(0) // player 0 pawn
+        this.board[p1coord] = new PawnPiece(1) // player 1 pawn        
+      }
     }
   }
 
@@ -5583,11 +5741,15 @@ class RoMokGame extends GenericTurnBasedGame {
       let move = StrToBoardXY(action.src)
       if (move.x === 0 || move.x === (this.fullSize() - 1)) {
         // moved piece from edge of board so regenerate it
-        this.board[action.src] = new GenericPiece('p', action.player)
+        this.regenPieceAt(action.src, action.player)
       }
     }
     result = this.checkWin(action, result)
     return super.doPostTurn(action, result)
+  }
+
+  regenPieceAt (loc, player) {
+    this.board[loc] = new PawnPiece(player)
   }
 
   doWin (action, result) {
@@ -5630,21 +5792,19 @@ class RoMokGame extends GenericTurnBasedGame {
     let myX = startX
     let myY = startY
     let consecutive = 0
-    if (dX && dY && this.turnCount > 9) {//FIXME
-      console.log('pre debugger')
-      debugger;
-      console.log('passed debugger')
+    if (dX && dY && this.turnCount > 9) {
+      ; // could put break or debugger here
     }
     for (let i = 0; i < 9; i++) {
       let coord = this.clipToBoard(myX, myY)
       if (coord != null) {
         let myPiece = this.pieceAt(coord.x, coord.y)
-	if (action) {
-	  console.log('turn/count: ' + this.turn + '/' + this.turnCount +
-		      ` myX=${myX}, myY=${myY}`)
-	  console.log(action)
-	  console.log(this.showBoard())
-	}
+        if (action) {
+          console.log('turn/count: ' + this.turn + '/' + this.turnCount +
+                      ` myX=${myX}, myY=${myY}`)
+          console.log(action)
+          console.log(this.showBoard())
+        }
         if (myPiece != null && myPiece.owner === owner) {
           consecutive += 1
           myX += dX
@@ -5671,14 +5831,38 @@ class RoMokGame extends GenericTurnBasedGame {
       throw new Error(`Cannot move to ${action.dest}; ${destPiece} there`)
     } else if (srcPiece == null) {
       throw new Error('No piece to move at ' + action.src)
-    } else if (srcPiece.owner != action.player ) {
+    } else if (srcPiece.owner !== action.player) {
       let msg = (`Piece@${action.src} owned by player ${srcPiece.owner}` +
-		 ', but you are player ' + action.player)
+                 ', but you are player ' + action.player)
       throw new Error(msg)
     } else {
       this.board[action.dest] = srcPiece
       this.board[action.src] = null
     }
+  }
+
+  doBUMP (action) {
+    let srcPiece = this.board[action.src]
+    let destPiece = this.board[action.dest]
+    if (destPiece == null) {
+      throw new Error(`Cannot bump ${action.dest}; nothing there`)
+    } else if (! srcPiece.abilities['BUMP']) {
+      throw new Error(`Piece ${destPiece} does not have BUMP ability`)
+    } else if (srcPiece == null) {
+      throw new Error(`No piece at ${action.src} to bump with`)
+    } else if (srcPiece.owner !== action.player) {
+      let msg = (`Piece@${action.src} owned by player ${srcPiece.owner}` +
+                 ', but you are player ' + action.player)
+      throw new Error(msg)
+    } else {
+      // FIXME: make SimpleBump action class which triggers all this
+      // FIXME: should check if pieces adjacent
+      // FIXME: should check if src can bump dest and move it one slot
+      this.board[action.dest] = srcPiece
+      this.board[action.src] = null
+      // FIXME: should move piece that was at src
+    }
+
   }
 }
 
@@ -5693,7 +5877,8 @@ class NotYourTurnError extends Error {
 // ---
 
 module.exports = {
-  GenericTurnBasedGame, SimpleMove, RoMokGame, StrToBoardXY
+    GenericTurnBasedGame, SimpleMove, RoMokGame, StrToBoardXY,
+    StatusMsg
 }
 
 
@@ -5722,14 +5907,44 @@ module.exports = {
 const turnGameClient = __webpack_require__(/*! ./turnGameClient.js */ "./src/net/turnGameClient.js")
 const RoMokLib = __webpack_require__(/*! ./RoMokLib.js */ "./src/net/RoMokLib.js")
 
+/**
+ *  The RoMokClient extends the turnGameClient.GenericClient to be able to
+ *  play RoMok. The turnGameClient is a generic client for basically any
+ *  turn based game. With RoMokClient, we specialize the client to the
+ *  rules of RoMok.
+ *
+ *  This basically involves providing things like the move method to make
+ *  a move, getLocalGame to make a local copy of the game that the
+ *  authorative server has, and so on.
+ *
+ **/
 class RoMokClient extends turnGameClient.GenericClient {
+
+  /**  Move a piece from src to dest
+   *
+   *   @param src:   Source position of piece to move.
+   *
+   *   @param dest:  Destination position of piece to move.
+   *
+   * ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+   *
+   *   @return Instance of RoMokLib.StatusMsg describing result.
+   *
+   * ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+   *
+   *   @desc Move a piece from src to dest. This does not
+   *         move the piece in our game but instead sends
+   *         a message to the server requesting the move.
+   *
+   */
   move (src, dest) {
     if (this.myPlayerNum !== this.room.state.game.turn) {
       if (this.room.state.game.turn == null) {
-        return { msg: 'Game is not ready to start yet.' }
+        return new RoMokLib.StatusMsg('Game is not ready to start yet.', 'NOOP')
       } else {
-        return { msg: 'Not your turn. You = player ' + this.myPlayerNum +
-                 ', turn for player ' + this.room.state.game.turn }
+        return new RoMokLib.StatusMsg('Not your turn. You = player ' +
+                                      this.myPlayerNum + ', turn for player ' +
+                                      this.room.state.game.turn, 'NOOP')
       }
     }
     let myMoveMsg = {
@@ -5737,37 +5952,88 @@ class RoMokClient extends turnGameClient.GenericClient {
       content: { src: src, dest: dest },
       msgId: this.room.state.msgCntr[this.room.sessionId]
     }
-    this.room.send(myMoveMsg)
-    return { msg: 'Sent move action' }
+      this.room.send(myMoveMsg)
+      return new RoMokLib.StatusMsg('Sent move action', 'OK')
+  }
+
+  /**
+   * Get function to make a local copy of the game.
+   * This method returns a callable object that you
+   * can call as new func(players, size, pad) to make a local
+   * copy of the game. We basically just return the
+   * RoMokLib.RoMokGame class. See getLocalGame method for
+   * usage.
+   */
+  getLocalGameMaker () {
+    return RoMokLib.RoMokGame
   }
 
   /**
    * Make a local version of the game from the server.
-   * FIXME: kind of inefficient do full copy.
-   */
+   *
+   * We use `this.room.state` to get the state of the game on the server,
+   * create a local version of the game, and just directly copy the server
+   * state to the local state. Obviously this is kind of inefficient and we
+   * could be more efficient by just applying the move history on the server
+   * to the client. But that is more complicated, and this game is simple
+   * enough where our copy approach seems sufficient for now.
+   *
+   **/
   getLocalGame () {
     let room = this.room
-    let game = new RoMokLib.RoMokGame(
+    let maker = this.getLocalGameMaker()
+    let game = new maker(
       room.state.game.players, room.state.game.size, room.state.game.pad)
     for (var k in room.state.game) game[k] = room.state.game[k]
     return game
   }
 
+  /**
+   * Return a simple string representation of the game board.
+   **/
   showBoard () {
     let game = this.getLocalGame()
     return game.showBoard()
   }
 
+  /**  Called when game history updated by the server.
+   *
+   *   @param value:  Colyseus change description.
+   *
+   * ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+   *
+   *   @desc  This method gets fired through a colyseus listen call
+   *          when the server changes state. It can be used by the
+   *          client to update its own actions based on game state
+   *          changes.
+   *
+   */
   gameHistoryUpdate (value) {
     super.gameHistoryUpdate(value)
-    console.log('FIXME: RoMokClient.gameHistoryUpdate')//FIXME
-    ; // Sub-classes should override to update state
   }
-  
+}
+
+/**  Make simple random ID
+ *
+ * ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+ *
+ *   @desc  This function makes a simple alphanumeric ID.
+ *          It is useful for anonymous player IDs and so on.
+ *
+ */
+function makeID (length) {
+  var text = ''
+  var possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+
+  for (var i = 0; i < length; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length))
+  }
+
+  return text
 }
 
 module.exports = {
-  RoMokClient
+  RoMokClient, makeID
 }
 
 
@@ -5839,27 +6105,45 @@ class GenericClient { // Client to connect to a generic turn based game
     console.log('Colyseus client reports an error:')
     console.log(myErr)
   }
+  // End client callbacks
 
-  // End client callbacks above
-
+  /**
+   *
+   *   @param roomName='game':  Name for room to join. Can be existing
+   *                            auto-generated room from matchmaker or
+   *                            'game' for default matchmaking. You
+   *                            cannot choose name for new room at this
+   *                            time since colyseus lacks that feature.
+   *
+   *   @param options=null:     Dictionary of options such as:
+   *                        username:  String name for player.
+   *                        create:    If true, create a new room instead
+   *                                   of joining existing one.
+   *
+   * ~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+   *
+   *   @desc This method is what the client calls after `connect()` to
+   *         try to join an existing game or create a new game.
+   *
+   */
   joinGame (roomName = 'game', options = null) {
     console.log('join inside turnGameClient') // FIXME
     if (this.colyClient == null) {
       throw new Error('No connection; must call connect before join.')
     }
-    if (options == null) {
-      options = {}
+    if (options == null) { // If no options provided, then create
+      options = {}         // empty dictionary so later stuff doesn't barf
     }
     let self = this
     this.room = this.colyClient.join(roomName, options)
     console.log('Joined game room')    
     this.room.listen('game/players/:thing', (change) => {
       try {
-	self.playerInfoChanged(change)
+        self.playerInfoChanged(change)
       } catch (error) {
-	console.log("ERROR inside listen('game/players/:thing,...):")
-	console.log(error)
-	throw error
+        console.log("ERROR inside listen('game/players/:thing,...):")
+        console.log(error)
+        throw error
       }
     }, true)
 
@@ -5882,8 +6166,8 @@ class GenericClient { // Client to connect to a generic turn based game
     this.room.listen('game/game_status_detail', (change) => {
       try { self.gameStatusChanged(change) }
       catch (error) {
-	console.log('error in listen game/game_status_detail')
-	throw error
+        console.log('error in listen game/game_status_detail')
+        throw error
       }
     }, true)
     
@@ -5902,9 +6186,14 @@ class GenericClient { // Client to connect to a generic turn based game
         throw error
       }
     }, true)
+    this.finishJoinGame()
   }
 
-  gameHistoryUpdate (value) {
+  finishJoinGame () {
+    ;//FIXME
+  }
+
+  gameHistoryUpdate (change) {
     console.log('FIXME: GenericClient.gameHistoryUpdate')//FIXME
   }
 
@@ -5917,7 +6206,7 @@ class GenericClient { // Client to connect to a generic turn based game
   
   playerInfoChanged (value) {
     if (this.room.state.game.players &&
-	this.room.state.game.players.length === 2) {
+        this.room.state.game.players.length === 2) {
       this.prepareToStartGame()
     }
   }
