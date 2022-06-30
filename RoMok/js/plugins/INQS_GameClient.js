@@ -5409,7 +5409,7 @@ class RoMokClientRMMV extends INQS.RoMokNet.RoMokClient {
         serverAddr = INQS.Param.RoMokServerAddress
       }
       console.log('Choosing RoMok game server address:' + serverAddr)
-      if (serveraddr == null) {
+      if (serverAddr == null) {
         console.log('WARNING: multiplayer will fail with null serverAddr')
       }
       this.addr = serverAddr
