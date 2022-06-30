@@ -5403,7 +5403,15 @@ class RoMokClientRMMV extends INQS.RoMokNet.RoMokClient {
     if (this.addr == null) {
       let serverAddr = $gameVariables.value(
         INQS.Param.RoMokServerAddrVar)
+      if (serverAddr == null) {
+        console.log('Unable to get addr var from INQS.Param.')
+        console.log('Will hack an answer.')  // FIXME
+        serverAddr = INQS.Param.RoMokServerAddress
+      }
       console.log('Choosing RoMok game server address:' + serverAddr)
+      if (serveraddr == null) {
+        console.log('WARNING: multiplayer will fail with null serverAddr')
+      }
       this.addr = serverAddr
     }
     super.connect()
